@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuraHeal - Face Disease Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form, .camera-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            margin-top: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        video {
+            width: 300px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>NeuraHeal - Face Disease Detection</h1>
+
+    <!-- File Upload Section -->
+    <form id="uploadForm">
+        <input type="file" id="fileInput" required>
+        <button type="submit">Upload & Analyze</button>
+    </form>
+
+    <p>OR</p>
+
+    <!-- Live Camera Capture Section -->
+    <div class="camera-section">
+        <video id="video" autoplay></video>
+        <button onclick="capturePhoto()">Capture Photo</button>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <p id="result"></p>
+
+    <script>
+        // Camera Setup
+        const video = document.getElementById("video");
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => console.error("Camera access denied:", err));
+
+        function capturePhoto() {
+            let canvas = document.getElementById("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            let ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to Blob & Send to Server
+            canvas.toBlob(blob => {
+                let formData = new FormData();
+                formData.append("image", blob, "captured_photo.jpg");
+
+                fetch("/predict", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(result => {
+                    document.getElementById("result").innerText = "Detected Disease: " + result["Detected Disease"];
+                })
+                .catch(error => console.error("Error:", error));
+            }, "image/jpeg");
+        }
+
+        // File Upload Handler
+        document.getElementById("uploadForm").onsubmit = async function(event) {
+            event.preventDefault();
+            let file = document.getElementById("fileInput").files[0];
+            let formData = new FormData();
+            formData.append("image", file);
+
+            let response = await fetch("/predict", {
+                method: "POST",
+                body: formData
+            });
+
+            let result = await response.json();
+            document.getElementById("result").innerText = "Detected Disease: " + result["Detected Disease"];
+        }
+    </script>
+</body>
+</html>
